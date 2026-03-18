@@ -19,6 +19,5 @@ COPY server.ts ./
 # Copy types if needed by server.ts (though I put logic in server.ts)
 # COPY src/types.ts ./src/types.ts 
 
-EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["tsx", "server.ts"]
+CMD ["npm", "start"]
