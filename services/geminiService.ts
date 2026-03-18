@@ -1,3 +1,4 @@
+import { GoogleGenAI } from "@google/genai";
 import { ColorPalette } from "../types";
 
 export class GeminiService {
@@ -31,26 +32,49 @@ STYLE REQUIREMENTS:
 
 FINAL OUTPUT: A single, clean, high-resolution graphic art piece. Do not include any photographic textures or realistic shadows. The subject is original-colored vector art, and the background is monochromatic ${palette.label} doodle art.`;
 
-    const response = await fetch('/api/transform', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        imageBase64,
-        mimeType,
-        fullPrompt,
-        modelName,
-        resolution
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to transform image.");
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API key is missing. Please select an API key.");
     }
 
-    const data = await response.json();
-    return data.resultImageUrl;
+    const ai = new GoogleGenAI({ apiKey });
+
+    const imageConfig: any = {
+      aspectRatio: "1:1"
+    };
+
+    if (modelName.includes('gemini-3')) {
+      imageConfig.imageSize = resolution;
+    }
+
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: {
+        parts: [
+          { inlineData: { data: imageBase64, mimeType } },
+          { text: fullPrompt }
+        ],
+      },
+      config: {
+        imageConfig
+      } as any
+    });
+
+    let resultImageUrl = '';
+    const candidate = response.candidates?.[0];
+    if (candidate?.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.inlineData?.data) {
+          resultImageUrl = `data:image/png;base64,${part.inlineData.data}`;
+          break;
+        }
+      }
+    }
+
+    if (!resultImageUrl) {
+      throw new Error("Gemini failed to generate an image part.");
+    }
+
+    return resultImageUrl;
   }
 }

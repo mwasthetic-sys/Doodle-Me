@@ -24,6 +24,15 @@ export interface ColorPalette {
   tertiary: string;
 }
 
+declare global {
+  interface Window {
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
+
 export interface ModelOption {
   id: string;
   name: string;

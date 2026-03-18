@@ -15,7 +15,6 @@ export const Header: React.FC = () => (
           <span>Doodle</span>
           <span className="text-6xl sm:text-8xl text-indigo-600 rotate-3 inline-block drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">Me</span>
         </h1>
-        <p className="text-sm font-bold uppercase tracking-[0.3em] text-slate-500 ml-1">Fun Art Generator</p>
       </div>
     </div>
   </header>

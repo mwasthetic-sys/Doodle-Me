@@ -12,6 +12,26 @@ export default function App() {
   const [resultImage, setResultImage] = useState<ImageItem | null>(null);
   const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() => {
+    const checkApiKey = async () => {
+      if (window.aistudio && window.aistudio.hasSelectedApiKey) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      } else {
+        setHasApiKey(true);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  const handleSelectApiKey = async () => {
+    if (window.aistudio && window.aistudio.openSelectKey) {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true);
+    }
+  };
 
   const handleUpload = useCallback((newItems: ImageItem[]) => {
     if (newItems.length > 0) {
@@ -61,8 +81,13 @@ export default function App() {
       );
       
       setResultImage(prev => prev ? { ...prev, status: 'success', resultUrl: generatedUrl } : null);
-    } catch (err) {
-      setResultImage(prev => prev ? { ...prev, status: 'error', error: String(err) } : null);
+    } catch (err: any) {
+      const errorMessage = String(err);
+      setResultImage(prev => prev ? { ...prev, status: 'error', error: errorMessage } : null);
+      
+      if (errorMessage.includes("API key not valid") || errorMessage.includes("Requested entity was not found")) {
+        setHasApiKey(false);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -86,6 +111,25 @@ export default function App() {
     }
   };
 
+  if (!hasApiKey) {
+    return (
+      <div className="min-h-screen bg-amber-50 bg-doodle flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-3xl doodle-border doodle-shadow max-w-md w-full text-center space-y-6">
+          <h2 className="text-2xl font-doodle font-bold">API Key Required</h2>
+          <p className="text-slate-600">
+            This app uses Gemini 3.1 Flash Image Preview. You need to select your own Google Cloud API key to continue.
+          </p>
+          <button
+            onClick={handleSelectApiKey}
+            className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl doodle-border doodle-shadow-sm hover:bg-slate-800 transition-colors"
+          >
+            Select API Key
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-amber-50 bg-doodle flex flex-col items-center p-4 sm:p-8 overflow-x-hidden">
       <Header />
@@ -93,36 +137,43 @@ export default function App() {
       <main className="w-full max-w-2xl flex-1 flex flex-col items-center justify-center space-y-8 py-4 sm:py-8">
         {view === 'home' ? (
           <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="relative group">
-              <div className="absolute -inset-2 bg-black rounded-[40px] opacity-5 group-hover:opacity-10 transition-opacity"></div>
-              <div className="relative bg-white doodle-border doodle-shadow p-6 sm:p-10 flex flex-col items-center text-center space-y-6">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-doodle font-bold text-slate-800">1. Snap or Drop!</h2>
-                  <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">Start with a selfie or any photo</p>
-                </div>
-                <ImageUploadArea 
-                  onUpload={handleUpload} 
-                  onWebcamClick={() => setIsWebcamOpen(true)} 
-                  itemCount={sourceImage ? 1 : 0} 
-                />
-                {sourceImage && (
-                  <div className="mt-4 relative group/img animate-in zoom-in-50 duration-300">
-                    <div className="absolute -inset-2 bg-yellow-400 opacity-20 blur-xl"></div>
-                    <img 
-                      src={`data:${sourceImage.mimeType};base64,${sourceImage.base64}`} 
-                      alt="Preview" 
-                      className="w-40 h-40 object-cover doodle-border doodle-shadow-sm rotate-2 group-hover/img:rotate-0 transition-transform relative z-10"
-                    />
+            {!sourceImage ? (
+              <ImageUploadArea 
+                onUpload={handleUpload} 
+                onWebcamClick={() => setIsWebcamOpen(true)} 
+                itemCount={0} 
+              />
+            ) : (
+              <div className="relative group">
+                <div className="absolute -inset-2 bg-black rounded-[40px] opacity-5 group-hover:opacity-10 transition-opacity"></div>
+                <div className="relative bg-white doodle-border doodle-shadow p-6 sm:p-10 flex flex-col items-center text-center space-y-6">
+                  <div className="space-y-2">
+                    <h2 className="text-3xl font-doodle font-bold text-slate-800">
+                      1. Looking Good!
+                    </h2>
+                    <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">
+                      Ready for the doodle magic
+                    </p>
+                  </div>
+                  <div className="w-full flex flex-col items-center space-y-6 animate-in zoom-in-50 duration-300">
+                    <div className="relative group/img w-full max-w-sm">
+                      <div className="absolute -inset-2 bg-yellow-400 opacity-20 blur-xl"></div>
+                      <img 
+                        src={`data:${sourceImage.mimeType};base64,${sourceImage.base64}`} 
+                        alt="Preview" 
+                        className="w-full h-auto max-h-[300px] object-cover doodle-border doodle-shadow-sm rotate-1 group-hover/img:rotate-0 transition-transform relative z-10 bg-white"
+                      />
+                    </div>
                     <button 
                       onClick={() => setSourceImage(null)}
-                      className="absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-full doodle-border doodle-shadow-sm flex items-center justify-center font-bold text-lg z-20 hover:scale-110 active:scale-90 transition-transform"
+                      className="bg-white hover:bg-slate-50 text-black font-black py-3 px-6 doodle-border doodle-shadow doodle-button text-lg flex items-center justify-center gap-2 transition-colors"
                     >
-                      ✕
+                      <span>📸</span> RETAKE PHOTO
                     </button>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className={`space-y-6 transition-all duration-500 ${sourceImage ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none translate-y-8'}`}>
               <div className="text-center space-y-2">
