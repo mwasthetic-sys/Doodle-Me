@@ -1,0 +1,7 @@
+{
+  "name": "Doodle Me",
+  "description": "Snap a photo and watch it transform into a fun, energetic doodle masterpiece! Pick a color and let the magic happen.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
