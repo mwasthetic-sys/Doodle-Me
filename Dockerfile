@@ -1,19 +1,24 @@
-# Stage 1: Build
+# Build stage
 FROM node:20-slim AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-# Vite bakes in env vars at build time
-ARG GEMINI_API_KEY
-ENV GEMINI_API_KEY=$GEMINI_API_KEY
 RUN npm run build
 
-# Stage 2: Serve
+# Production stage
 FROM node:20-slim
 WORKDIR /app
-RUN npm install -g serve
+COPY package*.json ./
+# Install production dependencies only
+RUN npm install --omit=dev
+# Install tsx to run the server
+RUN npm install -g tsx
 COPY --from=build /app/dist ./dist
-EXPOSE 8080
-# Cloud Run expects the app to listen on 8080 by default
-CMD ["serve", "-s", "dist", "-l", "8080"]
+COPY server.ts ./
+# Copy types if needed by server.ts (though I put logic in server.ts)
+# COPY src/types.ts ./src/types.ts 
+
+EXPOSE 3000
+ENV NODE_ENV=production
+CMD ["tsx", "server.ts"]

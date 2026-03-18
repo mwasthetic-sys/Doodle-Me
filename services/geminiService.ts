@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import { ColorPalette } from "../types";
 
 export class GeminiService {
@@ -19,9 +18,6 @@ export class GeminiService {
     modelName: string = 'gemini-3.1-flash-image-preview',
     resolution: string = '1K'
   ): Promise<string> {
-    // Create a new instance right before the call to ensure the latest API key is used
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
     const fullPrompt = `Transform the provided image into a high-contrast pop-art digital vector illustration.
 
 STYLE REQUIREMENTS:
@@ -35,43 +31,26 @@ STYLE REQUIREMENTS:
 
 FINAL OUTPUT: A single, clean, high-resolution graphic art piece. Do not include any photographic textures or realistic shadows. The subject is original-colored vector art, and the background is monochromatic ${palette.label} doodle art.`;
 
-    const imageConfig: any = {
-      aspectRatio: "1:1"
-    };
-
-    // imageSize is only supported by gemini-3-pro-image-preview and gemini-3.1-flash-image-preview
-    if (modelName.includes('gemini-3')) {
-      imageConfig.imageSize = resolution;
-    }
-
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: {
-        parts: [
-          { inlineData: { data: imageBase64, mimeType } },
-          { text: fullPrompt }
-        ],
+    const response = await fetch('/api/transform', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      config: {
-        imageConfig
-      } as any
+      body: JSON.stringify({
+        imageBase64,
+        mimeType,
+        fullPrompt,
+        modelName,
+        resolution
+      }),
     });
 
-    let resultImageUrl = '';
-    const candidate = response.candidates?.[0];
-    if (candidate?.content?.parts) {
-      for (const part of candidate.content.parts) {
-        if (part.inlineData?.data) {
-          resultImageUrl = `data:image/png;base64,${part.inlineData.data}`;
-          break;
-        }
-      }
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to transform image.");
     }
 
-    if (!resultImageUrl) {
-      throw new Error("Gemini failed to generate an image part. Please check the prompt or image content.");
-    }
-    
-    return resultImageUrl;
+    const data = await response.json();
+    return data.resultImageUrl;
   }
 }
