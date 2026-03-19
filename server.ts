@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +23,9 @@ async function startServer() {
         return res.status(500).json({ error: "API key is missing. Please configure it in the environment." });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      // We use fetch directly instead of the SDK so we can manually set the Referer header.
+      // This helps if the user's API key has HTTP Referrer restrictions.
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
       
       const imageConfig: any = {
         aspectRatio: "1:1"
@@ -34,21 +35,45 @@ async function startServer() {
         imageConfig.imageSize = resolution;
       }
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: {
+      const payload = {
+        contents: [{
           parts: [
             { inlineData: { data: imageBase64, mimeType } },
             { text: fullPrompt }
-          ],
+          ]
+        }],
+        generationConfig: {
+          // The image generation config is passed here
+          ...({ imageConfig } as any)
+        }
+      };
+
+      // Re-implementing the call using fetch to include the Referer
+      const geminiResponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // We use the referer from the incoming request or a fallback
+          'Referer': req.headers.referer || 'https://ais-dev-varv3v43zbv2i5pneogjef-20801200097.europe-west2.run.app',
+          'x-goog-api-client': 'genai-js/0.21.0' 
         },
-        config: {
-          imageConfig
-        } as any
+        body: JSON.stringify(payload)
       });
 
+      if (!geminiResponse.ok) {
+        const errorData = await geminiResponse.json().catch(() => ({}));
+        const message = errorData.error?.message || geminiResponse.statusText;
+        
+        if (message.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
+          throw new Error("API Key Error: Your API key has 'HTTP Referrer' restrictions that block server-side requests. Please go to Google Cloud Console and set 'Website restrictions' to 'None' for this key.");
+        }
+        throw new Error(message);
+      }
+
+      const data: any = await geminiResponse.json();
+      
       let resultImageUrl = '';
-      const candidate = response.candidates?.[0];
+      const candidate = data.candidates?.[0];
       if (candidate?.content?.parts) {
         for (const part of candidate.content.parts) {
           if (part.inlineData?.data) {
