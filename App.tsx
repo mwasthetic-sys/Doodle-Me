@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { ImageUploadArea } from './components/ImageUploadArea';
 import { WebcamCapture } from './components/WebcamCapture';
@@ -13,6 +13,16 @@ export default function App() {
   const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (sourceImage && colorPickerRef.current) {
+      // Small delay to ensure the UI has updated and is ready to scroll
+      setTimeout(() => {
+        colorPickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [sourceImage]);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -166,16 +176,17 @@ export default function App() {
                     </div>
                     <button 
                       onClick={() => setSourceImage(null)}
-                      className="bg-white hover:bg-slate-50 text-black font-black py-3 px-6 doodle-border doodle-shadow doodle-button text-lg flex items-center justify-center gap-2 transition-colors"
+                      className="bg-white hover:bg-slate-50 text-black p-3 rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all flex items-center justify-center group/retake"
+                      title="Retake Photo"
                     >
-                      <span>📸</span> RETAKE PHOTO
+                      <span className="text-2xl group-hover/retake:scale-110 transition-transform">📸</span>
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className={`space-y-6 transition-all duration-500 ${sourceImage ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none translate-y-8'}`}>
+            <div ref={colorPickerRef} className={`space-y-6 transition-all duration-500 ${sourceImage ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none translate-y-8'}`}>
               <div className="text-center space-y-2">
                 <h2 className="text-3xl font-doodle font-bold text-slate-800">2. Pick Your Ink!</h2>
                 <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">Click a color to start the magic</p>
